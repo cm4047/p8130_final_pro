@@ -1,0 +1,122 @@
+---
+title: "descriptive_stats"
+author: "Qetsiyah Wang"
+date: "12/13/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message = FALSE, warning = FALSE,
+                      fig.width = 8, fig.height = 6)
+
+library(tidyverse)
+library(patchwork)
+library(dplyr)
+```
+
+## Descriptive Statistics For Hate Crime Rate
+
+```{r}
+crime = read_csv("HateCrimes.csv") %>%
+  mutate(
+    unemployment = factor(unemployment, levels = c("low", "high")),
+    urbanization = factor(urbanization, levels = c("low", "high")),
+    hate_crimes_per_100k_splc = as.numeric(hate_crimes_per_100k_splc)
+  )
+```
+
+### Distribution of Hate Crime Rate
+```{r}
+summary(crime$hate_crimes_per_100k_splc)
+mean = mean(crime$hate_crimes_per_100k_splc, na.rm = TRUE)
+median = median(crime$hate_crimes_per_100k_splc, na.rm = TRUE)
+maximum = max(crime$hate_crimes_per_100k_splc, na.rm = TRUE)
+minimum = min(crime$hate_crimes_per_100k_splc, na.rm = TRUE)
+
+```
+
+   Descriptive Statistics about the Hate Crime Rate was shown in the table. The mean of the crime rate is `r round(mean, 4)`  and the median is `r round(median, 4)`. Comparing two measures of location, mean is larger than the median, meaning that there would be a positive skewness within the distribution curve of hate crime rate. The third quartile is 0.3569, which shows the difference of `r round(maximum - 0.3569, 4)`, meaning that outliers of crime rate exist. Range of the crime rate is `r round(maximum - minimum, 4)`. Based on the general review on descriptive statistics of hate crime rate, we generate the histogram for more data visualization.
+
+```{r}
+hist(crime$hate_crimes_per_100k_splc, breaks = 50, 
+     main = "Histogram of Hate Crime Rate", xlab = "Hate Crime Rate", probability = T)
+lines(density(x = crime$hate_crimes_per_100k_splc, na.rm = TRUE), col = "red", lwt = 2)
+
+large_prop = crime %>%
+  filter(hate_crimes_per_100k_splc < 0.5)
+```
+
+  Same observations could be obtained from visualization. According to the Histogram of Hate Crime Rate, the distribution of hate crime rate is right skewed with a long right tail. The distribution curve is generally following the bell shape. Large proportion of data fell between 0 and 0.5 with `r round(nrow(large_prop)/nrow(crime), 4)`. However, the second slight peak could be observed from the crime rate range of 0.5-1.0. Furthermore, the maximum value of crime rate `r round(maximum, 4)` indeed acted as a outlier that strongly affected the distribution of hate crime rate. Generally, the distribution curve of Hate Crime Rate is the bell shape, however, the normality assumption could be regarded as being violated because there is long positive skewness observed from the distribution histogram. So, potential transformation of the outcome of interest (i.e,. Hate Crime Rate) needs to be performed for further establishment on data analysis, such as regression or prediction model. 
+
+```{r}
+outlier = crime %>%
+  filter(hate_crimes_per_100k_splc > 1 | is.na(hate_crimes_per_100k_splc)) %>%
+  select(state, hate_crimes_per_100k_splc)
+outlier
+```
+  For enhancing the efficacy of potential transformation on adjusting hate crime rate, outliers, presented by `r pull(outlier, state)[1]`, could be considered to be excluded due to its negative impact on the normality assumption. Also, from descriptive statistic table, 4 states,`r pull(outlier, state)[2:5]` , showed missing values on hate crime rate, which did not need to be included inside our exploration.
+
+```{r}
+crime_new = crime %>%
+  filter(state != "District of Columbia")
+
+mlr = lm(hate_crimes_per_100k_splc ~ unemployment + urbanization + median_household_income
+       + perc_population_with_high_school_degree + perc_non_citizen + gini_index + perc_non_white,
+       data = crime_new)
+MASS::boxcox(mlr)
+```
+
+  For finding out the effective transformation what we needed to perform for the outcome (i.e,. Hate Crime Rates), Box-Cox Transformation was used and shown in the figure above. Based on Box-Cox, the recommended transformation for the outcome was to take the natural logarithm as the lambda is equal to 0. 
+
+```{r}
+hist(log(crime_new$hate_crimes_per_100k_splc), na.rm = TRUE, breaks = 10, probability = T,
+     main = "Histogram of Hate Crime Rates", xlab = "Hate Crime Rate")
+lines(density(log(crime_new$hate_crimes_per_100k_splc), na.rm = TRUE), col = "red")
+```
+  
+  As taking the natural logarithm of hate crime rates, without showing any positive skewness, the distribution curve of hate crime rate generally presented as the bell shape and followed the normal distribution with a smooth peak. But, natural log histogram did not show any other peak besides the middle one, meaning that the potential transformation guaranteed the normality assumption for further model establishments. 
+
+### Exploration with Gini Index - Income Inequality
+
+```{r}
+
+ggplot(crime_new, aes(x = gini_index, fill = unemployment)) +
+  geom_density(stat = "density") +
+  facet_grid(~unemployment) +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(
+    title = "Distribution of Gini Index stratified by Unemployment",
+    x = "Gini Index"
+  )
+
+```
+
+  Based on the article, income inequality is measured from the parameter of Gini Index, the distribution of the income across the population. The coefficient ranges from 0% to 100%, showing from perfect equality to perfect inequality, respectively. According to two distribution curves with the stratification of unemployment status for each state, high unemployment showed significantly higher Gini index between 46% to 48% than low unemployment status. States with low unemployment status presented both low Gini Index and low proportion at certain Gini Index than high unemployment status, meaning that the income inequality is more serious or significant within states with high unemployment status. In other words, states, showing high level of unemployment would have higher proportion of total income belonged to population with the higher income level. 
+
+```{r}
+
+ggplot(crime_new, aes(x = gini_index, y = urbanization, fill = urbanization)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot of Gini Index stratified by Urbanization Status",
+    y = "Gini Index",
+    x = ""
+  ) +
+  coord_flip() +
+  scale_fill_viridis_d(begin = 0.3, end = 0.7, alpha = 0.5)
+
+```
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
