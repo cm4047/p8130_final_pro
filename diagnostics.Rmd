@@ -1,0 +1,94 @@
+---
+title: "Model Diagnostics"
+author: "Wenzhao Wu"
+date: "12/13/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(corrplot)
+library(HH)
+```
+
+```{r}
+hc_df = read.csv("./data/HateCrimes.csv") %>%
+  rename("income" = "median_household_income",
+         "degree" = "perc_population_with_high_school_degree",
+         "noncitizen" = "perc_non_citizen",
+         "nonwhite" = "perc_non_white",
+         "hc_rate" = "hate_crimes_per_100k_splc") %>%
+  mutate(income = as.numeric(income),
+         degree = as.numeric(degree),
+         noncitizen = as.numeric(noncitizen),
+         nonwhite = as.numeric(nonwhite),
+         hc_rate = as.numeric(hc_rate),
+         gini_index = as.numeric(gini_index),
+         unemployment = as.factor(unemployment),
+         urbanization = as.factor(urbanization)) %>%
+  dplyr::select(-state) %>%
+  drop_na()
+
+```
+
+
+# Fit full model & Model diagnostics
+
+The 9th observation is an influential point.
+
+```{r}
+fit_full = lm(hc_rate~.,data = hc_df)
+par(mfrow=c(2,2))
+plot(fit_full)
+
+try = hc_df[-9,] 
+fit_try = lm(hc_rate~., data = try)
+summary(fit_try)
+summary(fit_full) #exclusion/inclusion causes major changes in estimates
+```
+
+#Log transformation and remove influential point
+
+```{r}
+log_df = hc_df[-9,] %>%
+  mutate(log_rate = log(hc_rate)) %>%
+  dplyr::select(-hc_rate)
+```
+
+# Fit the transformed full model
+
+```{r}
+fit_log = lm(log_rate~., data = log_df)
+par(mfrow=c(2,2))
+plot(fit_log)
+
+#check collinearity
+vif(fit_log)
+```
+
+# Fit the stepwise model
+
+```{r}
+step(fit_log)
+fit_step = lm(log_rate~degree + gini_index, data = log_df)
+par(mfrow=c(2,2))
+plot(fit_step)
+
+#check the collinearity
+vif(fit_step)
+```
+
+# Fit the interaction model
+
+```{r}
+fit_inter1 = lm(log_rate ~ degree + gini_index*unemployment, data = log_df)
+par(mfrow=c(2,2))
+plot(fit_inter1)
+#the 2th observation is identified as an influential point, so consider removing it and re-fit the interaction model
+
+no2_df = log_df[-2,]
+fit_inter2 = lm(log_rate ~ degree + gini_index*unemployment, data = no2_df)
+par(mfrow=c(2,2))
+plot(fit_inter2)
+```
+

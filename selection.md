@@ -60,7 +60,7 @@ fit_full_original = lm(data = crime_df, hc_rate ~ .)
 
 #box-cox for full model without transformation
 fit_full_original %>% 
-  MASS::boxcox()
+  MASS::boxcox() 
 ```
 
 ![](selection_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
@@ -479,36 +479,36 @@ crime_log %>%
   nest(data = c(unemployment, urbanization, income, degree, noncitizen, gini_index, 
     nonwhite, hc_rate)) %>%
   mutate(
-    fit_1 = map(.x = data, ~lm(hc_rate ~ degree + gini_index*unemployment, data = .x)),
-    fit_2 = map(.x = data, ~lm(hc_rate ~ degree + gini_index, data = .x)),
-    fit_3 = map(.x = data, ~lm(hc_rate ~ unemployment + urbanization + income + degree + noncitizen + gini_index + nonwhite, data = .x))) %>%
+    model1 = map(.x = data, ~lm(hc_rate ~ degree + gini_index, data = .x)),
+    model2 = map(.x = data, ~lm(hc_rate ~ degree + gini_index*unemployment, data = .x)),
+    model3 = map(.x = data, ~lm(hc_rate ~ unemployment + urbanization + income + degree + noncitizen + gini_index + nonwhite, data = .x))) %>%
   pivot_longer(
-    fit_1:fit_3,
+    model1:model3,
     names_to = "model",
     values_to = "results"
   ) %>% 
   mutate(
     AIC = map(.x = results, ~AIC(.x)),
-    C_p = map(.x = results, ~ols_mallows_cp(.x, fit_full_log)),
+    Cp = map(.x = results, ~ols_mallows_cp(.x, fit_full_log)),
     adj_r_sq = map(.x = results, ~summary(.x)$adj.r.squared)
   ) %>% 
   unnest(AIC:adj_r_sq) %>%
-  mutate(num_parameter = c(5,3,8)) %>% 
-  dplyr::select(model, AIC, C_p, adj_r_sq, num_parameter) %>% 
-  knitr::kable()
+  mutate(num_parameter = c(3,5,8)) %>% 
+  dplyr::select(model, AIC, Cp, adj_r_sq, num_parameter) %>% 
+  knitr::kable(digits = 3)
 ```
 
-| model  |      AIC |      C\_p | adj\_r\_sq | num\_parameter |
-| :----- | -------: | --------: | ---------: | -------------: |
-| fit\_1 | 77.49676 | 0.5035069 |  0.1654334 |              5 |
-| fit\_2 | 78.10681 | 0.3147492 |  0.1184549 |              3 |
-| fit\_3 | 85.36491 | 8.0000000 |  0.0566727 |              8 |
+| model  |    AIC |    Cp | adj\_r\_sq | num\_parameter |
+| :----- | -----: | ----: | ---------: | -------------: |
+| model1 | 78.107 | 0.315 |      0.118 |              3 |
+| model2 | 77.497 | 0.504 |      0.165 |              5 |
+| model3 | 85.365 | 8.000 |      0.057 |              8 |
 
 ``` r
 #Cp of all models are smaller or equal to the number of parameters. So, all models are good
-#adjusted R^2 of fit_1 is the largest
-#AIC of fit_1 is the smallest, indicating fit_1 is the best
-#So, based on the different types of consideration above, fit_1 is the best#
+#adjusted R^2 of model2 is the largest
+#AIC of model2 is the smallest, indicating model2 is the best
+#So, based on the different types of consideration above, model2 is the best#
 
 #QQ plot of the model with interaction term 
 qqnorm(resid(fit_1), xlab = "Expected Value", ylab = "Residual", main = "")
